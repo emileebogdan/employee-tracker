@@ -1,6 +1,7 @@
 // Import and require mysql2
-const { default: inquirer } = require('inquirer');
+const inquirer = require('inquirer');
 const mysql = require('mysql2');
+require("console.table");
 
 
 // Connect to database
@@ -15,6 +16,8 @@ const db = mysql.createConnection(
   },
   console.log(`Connected to the employee_db database.`)
 );
+
+prompts();
 
 function prompts() {
   inquirer
@@ -50,7 +53,7 @@ function prompts() {
           addDepartment()
           break;
         case "Add a Role":
-          addRoles()
+          addRole()
           break;
         case "Add an Employee":
           addEmployee()
@@ -64,76 +67,144 @@ function prompts() {
       }
     });
 }
-
-db.query(sql, params, (err, result) => {
-  if (err) {
-    res.status(400).json({ error: err.message });
-    return;
-  }
-  res.json({
-    message: 'success',
-    data: body
+function viewDepartments() {
+  db.query("SELECT * FROM department", (err, result) => {
+    if (err) {
+      console.log(err)
+      return;
+    }
+    else {
+      console.table(result)
+      prompts()
+    }
   });
-});
-
-// Read all movies
-db.query(sql, (err, rows) => {
-  if (err) {
-    res.status(500).json({ error: err.message });
-    return;
-  }
-  res.json({
-    message: 'success',
-    data: rows
+};
+// update to view all roles
+function viewRoles() {
+  db.query("SELECT * FROM role", (err, result) => {
+    if (err) {
+      console.log(err)
+      return;
+    }
+    else {
+      console.table(result)
+      prompts()
+    }
   });
-});
+};
 
-// Delete a movie
-
-db.query(sql, params, (err, result) => {
-  if (err) {
-    res.statusMessage(400).json({ error: res.message });
-  } else if (!result.affectedRows) {
-    res.json({
-      message: 'Movie not found'
-    });
-  } else {
-    res.json({
-      message: 'deleted',
-      changes: result.affectedRows,
-      id: req.params.id
-    });
-  }
-});
-
-// Read list of all reviews and associated movie name using LEFT JOIN
-db.query(sql, (err, rows) => {
-  if (err) {
-    res.status(500).json({ error: err.message });
-    return;
-  }
-  res.json({
-    message: 'success',
-    data: rows
+// update to view all employees
+function viewEmployees() {
+  db.query("SELECT * FROM employee", (err, result) => {
+    if (err) {
+      console.log(err)
+      return;
+    }
+    else {
+      console.table(result)
+      prompts();
+    }
   });
-});
+};
 
-// BONUS: Update review name
+function addDepartment() {
+  inquirer.prompt([
+    {
+      name: "deptName",
+      message: "What is the name of the department?"
+    }])
+    .then(({ deptName }) => {
+      db.query("INSERT INTO department(name) VALUES(?)", [deptName], (err, res) => {
+        prompts();
+      })
+    })
+};
+// add role 
+function addRole() {
+  inquirer.prompt([
+    {
+      name: "title",
+      message: "What is the name of the role?"
+    },
+    {
+      name: "salary",
+      message: "What is the salary of this role?",
+      type: "number"
+    },
+    {
+      name: "department_id",
+      message: "What is the department id of this role?",
+      type: "number"
+    }
+  ])
+    .then(({ title, salary, department_id }) => {
+      db.query("INSERT INTO role(title, salary, department_id) VALUES(?,?,?)", [title, salary, department_id], (err, res) => {
+        prompts();
+      })
+    })
+};
+// add employee
+function addEmployee() {
+  inquirer.prompt([
+    {
+      name: "first_name",
+      message: "What is the first name of this employee?"
+    },
+    {
+      name: "last_name",
+      message: "What is the last name of this employee?"
+    },
+    {
+      name: "role_id",
+      message: "What is the role id of this employee?",
+      type: "number"
+    },
+    {
+      name: "manager_id",
+      message: "What is the manager id of this employee?",
+      type: "number",
+      default: "NULL"
+    }
 
-db.query(sql, params, (err, result) => {
-  if (err) {
-    res.status(400).json({ error: err.message });
-  } else if (!result.affectedRows) {
-    res.json({
-      message: 'Movie not found'
-    });
-  } else {
-    res.json({
-      message: 'success',
-      data: req.body,
-      changes: result.affectedRows
-    });
-  }
-});
+  ])
+    .then(({ first_name, last_name, role_id, manager_id }) => {
+      db.query("INSERT INTO employee(first_name, last_name, role_id, manager_id) VALUES(?,?,?,?)", [first_name, last_name, role_id, manager_id], (err, res) => {
+        prompts();
+      })
+    })
+};
 
-
+function updateRole(){
+  inquirer.prompt([
+    {
+      name: "role_id",
+      message: "What is the role that you want to edit?"
+    }
+  ])
+  .then(({role_id}) => {
+    db.query("SELECT * FROM role WHERE id = ?", [role_id], (err, res) => {
+      inquirer.prompt([
+        {
+          name: "title",
+          message: "What is the title of the role?",
+          default: res[0].title
+        },
+        {
+          name: "salary",
+          message: "What is the salary of the role?",
+          default: res[0].salary
+        },
+        {
+          name: "department_id",
+          message: "What is the department id of the role?",
+          default: res[0].department_id
+        },
+      ])
+      .then(({title, salary, department_id}) =>{
+        db.query("UPDATE role  SET title = ?,salary = ?, department_id = ? WHERE id = ? ",[title, salary, department_id,role_id], (err, res) => {
+          prompts();
+        })
+      })
+    }) 
+  })
+};
